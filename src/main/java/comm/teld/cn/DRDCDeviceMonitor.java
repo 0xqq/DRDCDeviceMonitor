@@ -116,7 +116,7 @@ public class DRDCDeviceMonitor {
 				return;
 			}
 
-			//加载配置文件 change by wangwb
+			//加载配置文件 change by wangwb   
 			InputStream in = DRDCDeviceMonitor.class.getResourceAsStream("/" + args[0].trim() + ".properties");
 			Properties prop = new Properties();
 			prop.load(in);
