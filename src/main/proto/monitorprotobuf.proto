@@ -1,0 +1,678 @@
+syntax = "proto3";
+package monitor.protobuf;
+
+
+//心跳（0x00）
+message HeartbeatReq
+{
+	DateTime CurrentTime =1;		  //发送方当前时间
+}
+
+//心跳（0x80）
+message HeartbeatAns
+{
+	DateTime CurrentTime =1;		  //接收方当前时间
+}
+
+ 
+
+//上线申请.请求（0x02）
+message LoginReq
+{
+	string Key =1;		            //集控器秘钥
+	DateTime SendTime = 2;          //发送时间
+	string SerialNumber =3;         //设备序列号(预留)
+	string CtrlProtoVersion = 4;    //集控协议版本号
+	string CtrlVendor = 5;          //集控生产厂商
+	string CtrlSwVersion = 6;       //集控软件版本号
+	CtrlHardwareType CtrlHwType = 7;//集控硬件类型(集控/单桩)
+	string DataCenter =8;           //集控所属数据中心(前置填充)
+	string Reserved1 = 101;         //预留1
+	string Reserved2 = 102;         //预留2
+}
+
+//上线申请.响应（0x82）
+message LoginAns
+{
+	RegistrationStatus Status =1;       //注册结果
+	DateTime CurrentTime =2;		    //服务器当前时间
+	int32 Interval =3; 				    //心跳时间间隔（秒）
+}
+
+//离线通知.请求（0x04）
+message OfflineReq
+{
+	OfflineReason Reason =1;     //集控器离线原因
+	DateTime OfflineTime = 2;    //集控离线时间
+	string CtrlProtoVersion = 3; //集控协议版本号
+	string Reserved1 = 101;        //预留1
+	string Reserved2 = 102;        //预留2
+	
+}
+
+//离线通知.响应（0x84） 集控到前置不用该类型了，改用 通用响应（0xFE）
+message OfflineAns
+{
+    BoolEnum Confirm = 1; //通知确认
+}
+
+
+//集控器离线原因
+enum OfflineReason
+{
+    DefaultOfflineReason = 0x00;       //缺省值
+	ConnectionLost =0x01;              //TCP连接断开
+	PowerOff =0x02;                    //集控器掉电
+	HeartbeatTimeout = 0x03;           //心跳超时
+}
+
+
+//注册结果
+enum RegistrationStatus
+{
+	DefaultRegistrationStatus = 0x00;//缺省值
+	Accepted = 0x01;	        //成功
+	Rejected = 0x02;			//拒绝
+}
+
+//告警数据通知.请求	(0x58)
+message AlarmReq
+{
+	int32 DevIndex = 1;          //设备索引地址(can地址)
+	string SN = 2;               //设备条码
+	DevDescType DevType = 3;         //设备类型 
+	SendReason Reason = 4;            //数据传送原因
+	DateTime AlarmTime = 5; //告警发生/恢复时间
+	repeated AlarmDataType  AlarmDataList = 6;    //告警数据列表
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//单个告警信号描述
+message AlarmDataType
+{
+	int32 AlarmCode = 1; //告警码
+	AlarmStateEnumType AlarmState = 2;   //告警状态(故障、恢复)
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+
+
+//集控硬件类型  
+enum CtrlHardwareType  
+{
+    DefaultCtrlHardwareType = 0x00;     //缺省值
+	SplitType = 0x01;                   //集控器
+	IntigratedType = 0x02;              //单桩集控
+}
+
+//告警状态枚举
+enum AlarmStateEnumType
+{
+	DefaultAlarm =0; //缺省 
+	AbNormal =1 ;  //告警发生,故障
+	Normal =2 ;   //告警恢复
+}
+ 
+
+//数据传送原因
+enum SendReason
+{
+    DefaultSendReason = 0x00;
+    DataChange = 0x01;      //突发
+	CallAnswer = 0x02;      //召唤应答
+	IntervalSend = 0x03;    //周期上送
+}
+
+//设备类型英文名称
+enum DevDescType
+{
+	DefaultDevTypeEnum = 0;
+	Mtu  = 1;   		  //集控器
+	Room = 2;   		  //箱变
+	ControlBox = 3;   	  //总控箱
+	DcsinglePile = 4;     //直流单桩
+	AcsinglePile =5;      //交流单桩
+	Cabinet	= 6 ; 	      //充电柜
+	Charingbow = 7;    	  //充电弓
+	Pantograph = 8 ;	  //受电弓
+	CCU = 9;			  //ccu
+	PDU	= 10;			//pdu
+	Dcmodular= 11 ; 	//直流充电模块
+	Acmodular = 12; 	//交流充电模块
+	Pile = 13; 			//充电终端
+	Lock = 14; 			//地锁
+	Fan	= 15;			//风机
+	Meter =  16 ;		//电表
+}
+
+//直流模块数据召唤.请求 0x59
+message DCModularReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤指定can设备的数据。如果没填，则表示召唤所有的直流模块数据
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//直流模块数据.通知 0x60
+message DCModularDataNotifyReq
+{
+	DateTime SendTime = 1;            //发送时间
+	repeated DCModularDataType DataList  = 2; //直流模块数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//直流模块数据项
+message DCModularDataType
+{
+	int32 DevIndex = 1;  //can地址
+	string SN =2;   //设备条码(能取到sn就填，否则可以空着)
+	int32 RunState =3;   //运行状态 0：待机 1：休眠 2：运行 3：离线 4~255预留 
+	int32 Group =4;      //所属分组
+	double InVa = 5 ; // 输入A相电压
+	double InVb = 6 ; // 输入B相电压
+	double InVc = 7 ; // 输入C相电压
+	double InI = 8 ; // 输入电流（三相平均电流）
+	double OutV = 9 ; // 输出电压
+	double OutI = 10 ; // 输出电流
+	sint32 EnvT = 11 ; // 环境温度
+	sint32 M1T = 12 ; // M1板温度
+	int32 RunTime = 13 ; // 总运行时间，单位是小时
+	int32 SwitchCount = 14 ; // 切换次数
+	int32 AlarmCode = 15 ; // 告警码
+	sint32 SinglePlateT3 = 16 ; // 单板温度3
+	int32 FrameNo = 17 ; // 插框号
+	string SoftV1 = 18 ; // 软件1版本
+	string SoftV2 = 19 ; // 软件2版本
+	string SoftV3 = 20 ; // 软件3版本
+	string HardV = 21 ; // 硬件版本
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+////////////////////////////////////////////////
+
+//交流模块数据召唤.请求  0x61
+message ACModularReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤指定can设备的数据。如果没填，则表示召唤所有的交流模块数据
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//交流模块数据.通知 0x62
+message ACModularDataNotifyReq
+{
+	DateTime SendTime = 1;            //发送时间
+	repeated ACModularDataType DataList  = 2; //交流模块数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//交流模块数据项
+message ACModularDataType
+{
+	int32 DevIndex = 1;  //can地址
+	string SN =2;   //设备条码(能取到sn就填，否则可以空着)
+	int32 AlarmCode = 3 ; // 告警码
+	int32 RunState = 4 ; // 运行状态
+	double InV = 5 ; // "输入电压（V）"
+	double InI = 6 ; // "输入电流（A）"
+	double OutV = 7 ; // "输出电压（V）"
+	double OutI = 8 ; // "输出电流（A）"
+	double EnvT= 9 ; // "环境温度1（℃）"
+	sint32 InT = 10 ; // "设备内部温度（℃）"
+	sint32 GunT = 11 ; // "设备枪座温度（℃）"
+	int32 RunTime = 12 ; // "总运行时间（小时）"
+	int32 SwitchCount = 13 ; // 充电次数
+	double ACRatedOutP = 14 ; // "交流额定输出功率（KW）"
+	double OutP = 15 ; // "当前输出有功功率（KW）"
+	double OutQ = 16 ; // "当前输出无功功率（var）"
+	double S = 17 ; // "当前输出视在功率（VA）"
+	double CPF = 18 ; // 当前功率因数
+	double CF = 19 ; // "当前频率（Hz）"
+	double KWH = 20 ; // "电能表读数（KWH）"
+	int32 Relay = 21 ; // 输出继电器状态
+	int32 Connect = 22 ; // 输出接触器状态
+	int32 FrameNo = 23 ; // 插框号
+	string SoftV1 = 24 ; // 软件1版本
+	string SoftV2 = 25 ; // 软件2版本
+	string SoftV3 = 26 ; // 软件3版本
+	string HardV = 27 ; // 硬件版本
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+////////////////////////////////////////////////
+
+//PDU数据召唤.请求 0x63
+message PduReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤指定can设备的数据。如果没填，则表示召唤所有的PDU数据
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//PDU数据.通知 0x64
+message PduDataNotifyReq
+{
+	DateTime SendTime = 1;            //发送时间
+	repeated PduDataType DataList  = 2; //PDU数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//PDU数据项
+message PduDataType
+{
+	int32 DevIndex = 1;  //can地址
+	string SN =2;   //设备条码(能取到sn就填，否则可以空着)
+	int32 RunState = 3 ; // 运行状态
+	double OutV = 4 ; // "输出电压（V）"
+	double OutI = 5 ; // "输出电流（A）"
+	sint32 EnvT = 6 ; // "环境温度1（℃）"
+	sint32 RadT = 7 ; // "散热器温度（℃）"
+	int32 RunTime = 8 ; // "总运行时间（小时）"
+	int32 SwitchCount = 9 ; // 切换次数
+	double KWH = 10 ; // "电能表读数（KWH）"
+	int32 NegR = 11 ; // 绝缘电阻负对地阻值
+	int32 PosR =12 ;  //绝缘电阻正对地阻值
+	int32 AlarmCode = 13 ;      //告警码
+	int32 FrameNo = 14 ; // 插框号
+	string SoftV1 = 15 ; // 软件1版本
+	string SoftV2 = 16 ; // 软件2版本
+	string SoftV3 = 17 ; // 软件3版本
+	string HardV = 18 ; // 硬件版本
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+////////////////////////////////////////////////
+
+//CCU数据召唤.请求  0x65
+message CcuReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤指定can设备的数据。如果没填，则表示召唤所有的CCU数据
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//CCu数据.通知 0x66
+message CcuDataNotifyReq
+{
+	DateTime SendTime = 1;            //发送时间
+	repeated CcuDataType DataList  = 2; //PDU数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//CCU数据项
+message CcuDataType
+{
+	int32 DevIndex = 1 ; // 设备索引地址(目前用can地址表示)，如果填了值，则召唤指定can设备的数据。如果没填，则表示召唤所有的CCU数据
+	int32 RunState = 2 ; // 直流柜系统运行状态 
+	int32 InConStatus = 3 ; // 输入接触器状态
+	int32 LinkConStatus = 4 ; // 联动接触器状态
+	int32 SystemType = 5 ; // 系统机型
+	int32 RunTime = 6 ; // 总运行时间
+	sint32 EnvT = 7 ; // 环境温度
+	double DcCabRateP = 8 ; // 直流柜额定输出功率
+	double DcCabCurP = 9 ; // 直流柜当前输出功率
+	int32 AlarmCode = 10 ; // 告警码
+	int32 FrameNo = 11 ; // 插框号
+	string SoftV1 = 12 ; // 软件1版本
+	string SoftV2 = 13 ; // 软件2版本
+	string SoftV3 = 14 ; // 软件3版本
+	string HardV = 15 ; // 硬件版本
+	string SN = 16 ; // 条码
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+
+////////////////////////////////////////////////
+
+//总控箱数据召唤.请求 0x67
+message ControlboxDataReq
+{
+   	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//总控箱数据.通知 0x68
+message ControlboxDataNotifyReq
+{
+	DateTime SendTime = 1;            //发送时间
+	BoxType BoxData  = 2; //箱体数据项
+	SignalType BrkValue =3; //总进开关分合闸检测
+	MeterType meter = 4; //进线电表数据
+	AlarmStateEnumType MeterFault = 5 ; //电表故障信号
+	AlarmStateEnumType SurgeProSignal = 6; //浪涌保护器信号
+	AlarmStateEnumType AuxType = 7; //辅源故障信号
+	SignalType MicroBrk = 8 ; //微型断路器开关信号
+	repeated SlotType slot= 9 ; //PDU和模块的槽位状态信息
+	 
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//总控箱箱体数据
+message BoxType
+{
+	SignalType DoorSignal = 1; //开关门信号
+	SignalType SmokeSignal = 2; //烟感信号
+	AlarmStateEnumType WaterSignal = 3 ; //浸水信号
+	sint32 T = 4;  //温度
+	int32 HUM = 5 ; //湿度
+	AlarmStateEnumType ION = 6 ; //凝露信号
+	AlarmStateEnumType Stop = 7; //急停信号
+	AlarmStateEnumType FanFault = 8 ; //风机故障信号
+}
+
+//电表数据
+message MeterType
+{
+	double Va = 1 ; // A相电压
+	double Vb = 2 ; // B相电压
+	double Vc = 3 ; // C相电压
+	double Vdc = 4 ; // 直流电压
+	double Ia = 5 ; // A相电流
+	double Ib = 6 ; // B相电流
+	double Ic = 7 ; // C相电流
+	double Idc = 8 ; // 直流电流
+	double P = 9 ; // 总有功功率
+	double Q = 10 ; // 总无功功率
+	double PF = 11 ; // 总功率因数
+	double N = 12 ; // 零线电流
+	double VU = 13 ; // 电压不平衡率
+	double CU = 14 ; // 电流不平衡率
+	double HDF = 15 ; // 谐波畸变率
+	double Pa = 16 ; // A相有功功率
+	double Pb = 17 ; // B相有功功率
+	double Pc = 18 ; // C相有功功率
+	double Qa = 19 ; // A相无功功率
+	double Qb = 20 ; // B相无功功率
+	double Qc = 21 ; // C相无功功率
+	double Pfa = 22 ; // A相功率因数
+	double Pfb = 23 ; // B相功率因数
+	double Pfc = 24 ; // C相功率因数
+	double Fap = 25 ; // 总正向有功电能
+	double Rap = 26 ; // 总反向有功电能
+	double Irp = 27 ; // 感性无功电能
+	double Crp = 28 ; // 容性无功电能
+}
+
+//PDU和模块的槽位状态信息
+message SlotType
+{
+	int32 CanIndex = 1;
+	int32 SlotNo =2 ; //槽位号
+	SlotEnumType SlotStats =3 ; //槽位状态
+}
+
+///////////////////
+//充电箱变数据召唤.请求 0x69
+message RoomDataReq
+{
+ 	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//充电箱变数据通知.请求 0x70
+message RoomDataNotifyReq
+{
+	HVRBoxType HvrData = 1;   //高压室箱体信号
+	TFRBoxType TfrData = 2;   //变压器箱体信号
+	repeated LVRBoxType LvrRoomDataList = 3;   //低压室箱体信号，列表
+	HVRType HrvData = 4;                   //高压室数据
+	TrType TrData = 5;                     //变压器数据
+	LVRType LvrDataList= 6;                //低压室数据
+}
+
+
+//高压室箱体中的信号
+message HVRBoxType
+{
+	SignalType SmokeSignal = 1; //感烟信号 
+}
+
+//变压器室箱体的信号
+message TFRBoxType
+{
+	AlarmStateEnumType ION = 1 ; //凝露信号
+	SignalType SmokeSignal = 2; //烟感信号
+	int32 FanSpeed = 3 ; //风机转速 1000~1400rpm
+	AlarmStateEnumType FanFault = 4 ; //风机故障信号
+}
+
+//低压室箱体的信号
+message LVRBoxType
+{
+	int32 BoxNo = 1;            //低压室编号
+	SignalType Door1Signal = 2; //1低压室开门信号
+	SignalType Door2Signal = 3; //2低压室开门信号
+	SignalType DoorSignal = 4; //预留-低压室开门信号
+	SignalType SmokeSignal = 5; //烟感信号
+	AlarmStateEnumType WaterSignal = 6 ; //浸水信号
+	AlarmStateEnumType Stop = 7; //急停信号
+	AlarmStateEnumType ION = 8; //凝露信号
+}
+
+//高压室数据
+message HVRType
+{
+	//高压出线柜 暂时没有数据
+	MeterType meter = 1; //计量柜的电表数据
+	SignalType LdBrk = 2  ; //变压器出线柜的负荷开关分合闸检测
+}
+
+//变压器数据
+message TrType
+{
+	AlarmStateEnumType OverTAlarm = 1;   //超温报警（干变）
+	AlarmStateEnumType OverTOff = 2;     //超温跳闸（干变） 告警
+	AlarmStateEnumType LightGasAlarm = 3;     //轻瓦斯报警（油变）
+	AlarmStateEnumType HeavyGasOff = 4;       //重瓦斯跳闸（油变） 告警
+	SignalType    DoorSignal = 5;       //格网门开门信号
+	sint32 T = 6;                        //变压器温度
+}
+
+//低压室数据
+message LVRType
+{
+	LvCabType LvcCabData = 1;     //低压进线柜数据
+	repeated DCCabType DcCabData = 2; //直流柜数据
+}
+
+//低压进线柜
+message LvCabType
+{
+	sint32 T1 = 1;      //温度控制器1
+	int32 HUM1 = 2;     //湿度控制器1
+	sint32 T2 = 3;      //温度控制器2
+	int32 HUM2 = 4;     //湿度控制器2
+	sint32 T3 = 5;      //温度控制器3
+	int32 HUM3 = 6;     //湿度控制器3
+	sint32 T4 = 7;      //温度控制器4
+	int32 HUM4 = 8;     //湿度控制器4
+	sint32 T5 = 9;      //温度控制器5
+	int32 HUM5 = 10;    //湿度控制器5
+	repeated MeterType MeterList = 11; //三相四线电度表数据表
+	SignalType BrkValue = 12;          //低压进线总开关分合闸检测
+}
+
+//直流柜数据
+message DCCabType
+{
+	int32 CabNo = 1;     //直流柜编号
+	sint32 T = 2;      //温度
+	int32 HUM1 = 3;     //湿度
+	AlarmStateEnumType WaterSignal = 4 ; //浸水信号
+	AlarmStateEnumType ION = 5 ; //凝露信号
+	SignalType SmokeSignal = 6; //烟感信号 
+	AlarmStateEnumType SurgeProSignal = 7; //浪涌保护器信号
+	AlarmStateEnumType AuxType = 8; //辅源故障信号
+	SignalType MicroBrk = 9; //微型断路器开关信号
+	repeated SlotType slot= 10; //PDU和模块的槽位状态信息
+	SignalType PCbrk = 11;      //塑壳断路器的状态信号
+}
+
+//遥测数据召唤.请求（0x51 ）
+message MonitorTelemetryReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤该设备的数据。如果没填，则需要结合DevType使用
+	string DevType =2;     //设备类型。该值和DevIndex配合使用。如果DevIndex值没填，则根据DevType召唤所有该类型设备的遥测数据。否则，按照DevIndex召唤指定设备的遥测数据。
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//通用响应 
+message CommAns
+{
+    BoolEnum Confirm = 1; //确认
+}
+
+
+//遥信数据召唤.请求(0x53)
+message MonitorSignalReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤该设备的遥信数据。如果没填，则需要结合DevType使用
+	string DevType =2;     //设备类型。该值和DevIndex配合使用。如果DevIndex值没填，则根据DevType召唤所有该类型设备的遥信数据。否则，按照DevIndex召唤指定设备的遥信数据。
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+ 
+
+//状态数据召唤.请求（ 0x55）
+message MonitorStateReq
+{
+    repeated int32 DevIndex=1; //设备索引地址(目前用can地址表示)，如果填了值，则召唤该设备的状态数据。如果没填，则需要结合DevType使用
+	string DevType =2;     //设备类型。该值和DevIndex配合使用。如果DevIndex值没填，则根据DevType召唤所有该类型设备的状态数据。否则，按照DevIndex召唤指定设备的状态数据。
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+ 
+
+//遥测数据通知.请求（ 0x52）
+message MonitorTelemetryNotifyReq
+{
+	SendReason Reason = 1;            //数据传送原因
+	DateTime SendTime = 2;            //发送时间
+	repeated MonitorTelemetryType DataList  = 3; //遥测数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//MonitorTelemetryType-单个遥测信号描述
+message MonitorTelemetryType
+{
+	int32 DevIndex =1; //设备索引地址(can地址)
+	string DevType =2; //设备类型
+	int32 DotNo =3; //短序号 暂时不用
+	string DevName =4; //设备名称(暂时用sn表示)
+	string  MeasureName =5; //量测名称
+	double Value =6; //遥测值
+	int32 Status =7; //品质状态  参见《品质状态描述》
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//遥信数据通知.请求 (0x54)
+message MonitorSignalNotifyReq
+{
+	SendReason Reason = 1;            //数据传送原因
+	DateTime SendTime = 2;            //发送时间
+	repeated MonitorSignalType  DataList = 3;    //遥信数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//MonitorSignalType-单个遥信信号描述
+message MonitorSignalType
+{
+	int32 DevIndex =1; //设备索引地址(can地址)
+	string DevType =2; //设备类型
+	int32 DotNo =3; //短序号 暂时不用
+	string DevName =4; //设备名称(暂时用sn表示)
+	string  MeasureName =5; //量测名称
+	SignalType Value =6; //遥信值   1表示分  2表示合
+	int32 Status =7; //品质状态
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+
+
+//状态数据变化通知.请求( 0x56)
+message MonitorStateNotifyReq
+{
+	SendReason Reason = 1;            //数据传送原因
+	DateTime SendTime = 2;            //发送时间
+	repeated MonitorStateType  DataList = 3;    //遥信数据项
+    string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+//单个状态量数据变化结构
+message  MonitorStateType
+{
+	int32 DevIndex =1; //设备索引地址(can地址)
+	string DevType =2; //设备类型
+	int32 DotNo =3; //短序号 暂时不用
+	string DevName =4; //设备名称(暂时用sn表示)
+	string  MeasureName =5; //量测名称
+	int32 Value =6;   //状态值  不同设备的状态值定位在文档中描述
+	int32 Status =7; //品质状态
+	string Reserved1 = 101;   //预留1
+	string Reserved2 = 102;   //预留2
+}
+
+
+
+
+//遥控执行指令.请求 (0x57)
+message	TelecontrolReq
+{
+	bytes ss=1;
+}
+
+//遥控执行结果.响应 (0xD7)
+message TelecontrolAns
+{
+
+}
+
+//布尔类型枚举
+enum BoolEnum
+{
+    DefaultBool = 0;//缺省值
+	True = 1;   //是
+	False = 2;  //否
+}
+
+//时间戳
+message DateTime
+{
+	int64 Time = 0x01;
+}
+
+//SignalType 遥信值
+enum SignalType
+{
+	DefaultSignal =0; 
+	Off =1 ;  //分
+	On =2 ;   //合
+}
+
+
+
+//槽位状态枚举
+enum SlotEnumType
+{
+	DefaultSlotEnum =0; 
+	InSlot =1 ;  //在槽位中
+	NotInSlot =2 ;   //不在槽位中
+}
+

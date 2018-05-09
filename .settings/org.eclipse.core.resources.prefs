@@ -1,0 +1,8 @@
+eclipse.preferences.version=1
+encoding//src/main/java=UTF-8
+encoding//src/main/proto=UTF-8
+encoding//src/main/resources=UTF-8
+encoding//src/main/resources/dev.properties=UTF-8
+encoding//src/main/resources/local_wang.properties=UTF-8
+encoding//src/test/java/cn/teld/test/drecdevicemonitor/RabbitMQTestClient2.java=GBK
+encoding/<project>=UTF-8
